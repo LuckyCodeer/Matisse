@@ -92,6 +92,7 @@ public class MatisseActivity extends AppCompatActivity implements
     private LinearLayout mOriginalLayout;
     private CheckRadioView mOriginal;
     private boolean mOriginalEnable;
+    private Fragment mFragment;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -393,10 +394,16 @@ public class MatisseActivity extends AppCompatActivity implements
         } else {
             mContainer.setVisibility(View.VISIBLE);
             mEmptyView.setVisibility(View.GONE);
-            Fragment fragment = MediaSelectionFragment.newInstance(album);
+            if (mFragment != null) {
+                getSupportFragmentManager()
+                        .beginTransaction()
+                        .remove(mFragment)
+                        .commitAllowingStateLoss();
+            }
+            mFragment = MediaSelectionFragment.newInstance(album);
             getSupportFragmentManager()
                     .beginTransaction()
-                    .replace(R.id.container, fragment, MediaSelectionFragment.class.getSimpleName())
+                    .add(R.id.container, mFragment, MediaSelectionFragment.class.getSimpleName())
                     .commitAllowingStateLoss();
         }
     }
