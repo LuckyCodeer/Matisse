@@ -45,6 +45,8 @@ public final class SelectionSpec {
     public int maxVideoSelectable;
     public boolean preciseMaxImageSelectable;
     public boolean preciseMaxVideoSelectable;
+    public long selectableMaxSize; //可选择的最大尺寸默认单位字节
+    public String selectableMaxSizeMsg; //可选择的最大尺寸 提示消息
     public List<Filter> filters;
     public boolean capture;
     public CaptureStrategy captureStrategy;

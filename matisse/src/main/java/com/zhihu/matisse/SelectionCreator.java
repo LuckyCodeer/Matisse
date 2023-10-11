@@ -244,6 +244,23 @@ public final class SelectionCreator {
     }
 
     /**
+     * 设置可选择文件的最大大小
+     * @param size 文件大小 默认单位字节
+     */
+    public SelectionCreator selectableMaxSize(long size) {
+        mSelectionSpec.selectableMaxSize = size;
+        return this;
+    }
+
+    /**
+     * 设置超过可选最大尺寸时的提示消息文字
+     */
+    public SelectionCreator selectableMaxSizeMsg(String selectableMaxSizeMsg) {
+        mSelectionSpec.selectableMaxSizeMsg = selectableMaxSizeMsg;
+        return this;
+    }
+
+    /**
      * Capture strategy provided for the location to save photos including internal and external
      * storage and also a authority for {@link androidx.core.content.FileProvider}.
      *

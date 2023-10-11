@@ -89,6 +89,8 @@ public class SampleActivity extends AppCompatActivity implements View.OnClickLis
                                 new CaptureStrategy(true, "com.zhihu.matisse.sample.fileprovider", "test"))
 //                        .maxSelectable(1)
                         .maxSelectablePerMediaType(3, 2, true, false)
+                        .selectableMaxSize(50 * 1024 * 1024)
+                        .selectableMaxSizeMsg("超过最大可选文件大小")
                         .addFilter(new GifSizeFilter(320, 320, 5 * Filter.K * Filter.K))
                         .gridExpectedSize(
                                 getResources().getDimensionPixelSize(R.dimen.grid_expected_size))

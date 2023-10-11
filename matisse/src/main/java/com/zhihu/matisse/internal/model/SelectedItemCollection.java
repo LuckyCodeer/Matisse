@@ -192,7 +192,9 @@ public class SelectedItemCollection {
 
             String cause;
             try {
-                if (item.isImage() || item.isGif()) {
+                if (spec.selectableMaxSize > 0 && item.size > spec.selectableMaxSize) {
+                    cause = spec.selectableMaxSizeMsg;
+                } else if (item.isImage() || item.isGif()) {
                     cause = "图片数量达到最大选择上限";
                 } else if (item.isVideo()) {
                     cause = "视频数量达到最大选择上限";
@@ -227,6 +229,10 @@ public class SelectedItemCollection {
      */
     public boolean maxSelectableReached(Item item) {
         Log.i("TAG", "item===> " + item.toString());
+        SelectionSpec spec = SelectionSpec.getInstance();
+        if (spec.selectableMaxSize > 0 && item.size > spec.selectableMaxSize) {
+            return true;
+        }
         return currentMaxSelectable(item) <= 0;
     }
 
