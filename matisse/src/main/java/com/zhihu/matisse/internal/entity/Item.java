@@ -22,6 +22,8 @@ import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.provider.MediaStore;
+
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.zhihu.matisse.MimeType;
@@ -140,5 +142,16 @@ public class Item implements Parcelable {
         result = 31 * result + Long.valueOf(size).hashCode();
         result = 31 * result + Long.valueOf(duration).hashCode();
         return result;
+    }
+
+    @Override
+    public String toString() {
+        return "Item{" +
+                "id=" + id +
+                ", mimeType='" + mimeType + '\'' +
+                ", uri=" + uri +
+                ", size=" + size +
+                ", duration=" + duration +
+                '}';
     }
 }

@@ -19,6 +19,7 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 
 import com.zhihu.matisse.R;
 import com.zhihu.matisse.internal.entity.IncapableCause;
@@ -167,15 +168,40 @@ public class SelectedItemCollection {
     }
 
     public IncapableCause isAcceptable(Item item) {
-        if (maxSelectableReached()) {
-            int maxSelectable = currentMaxSelectable();
-            String cause;
+        if (maxSelectableReached(item)) {
+            int maxSelectable = 0;
+            SelectionSpec spec = SelectionSpec.getInstance();
+            //混选模式
+            if (spec.maxImageSelectable > 0 || spec.maxVideoSelectable > 0) {
+                if (item.isImage() || item.isGif()) {
+                    if (spec.preciseMaxImageSelectable) {
+                        maxSelectable = spec.maxImageSelectable;
+                    } else {
+                        maxSelectable = spec.maxSelectable;
+                    }
+                } else if (item.isVideo()) {
+                    if (spec.preciseMaxVideoSelectable) {
+                        maxSelectable = spec.maxVideoSelectable;
+                    } else {
+                        maxSelectable = spec.maxSelectable;
+                    }
+                }
+            } else {
+                maxSelectable = spec.maxSelectable;
+            }
 
+            String cause;
             try {
-                cause = mContext.getResources().getString(
-                        R.string.error_over_count,
-                        maxSelectable
-                );
+                if (item.isImage() || item.isGif()) {
+                    cause = "图片数量达到最大选择上限";
+                } else if (item.isVideo()) {
+                    cause = "视频数量达到最大选择上限";
+                } else {
+                    cause = mContext.getResources().getString(
+                            R.string.error_over_count,
+                            maxSelectable
+                    );
+                }
             } catch (Resources.NotFoundException e) {
                 cause = mContext.getString(
                         R.string.error_over_count,
@@ -196,13 +222,48 @@ public class SelectedItemCollection {
         return PhotoMetadataUtils.isAcceptable(mContext, item);
     }
 
-    public boolean maxSelectableReached() {
-        return mItems.size() == currentMaxSelectable();
+    /**
+     * 判断是否达到最大选择数量
+     */
+    public boolean maxSelectableReached(Item item) {
+        Log.i("TAG", "item===> " + item.toString());
+        return currentMaxSelectable(item) <= 0;
     }
 
     // depends
-    private int currentMaxSelectable() {
+    private int currentMaxSelectable(Item item) {
         SelectionSpec spec = SelectionSpec.getInstance();
+        if (spec.maxSelectable <= 0 || spec.maxSelectable - mItems.size() <= 0) {
+            return 0;
+        }
+        //混选模式
+        if (spec.maxImageSelectable > 0 || spec.maxVideoSelectable > 0) {
+            int currentSelectedImageCount = 0;
+            int currentSelectedVideoCount = 0;
+            for (Item it : mItems) {
+                if (it.isVideo()) {
+                    currentSelectedVideoCount++;
+                } else if (it.isImage()) {
+                    currentSelectedImageCount++;
+                }
+            }
+            if (item.isImage() || item.isGif()) {
+                if (spec.preciseMaxImageSelectable) {
+                    return spec.maxImageSelectable - currentSelectedImageCount;
+                } else {
+                    return spec.maxSelectable - currentSelectedImageCount - currentSelectedVideoCount;
+                }
+            }
+            if (item.isVideo()) {
+                if (spec.preciseMaxVideoSelectable) {
+                    return spec.maxVideoSelectable - currentSelectedVideoCount;
+                } else {
+                    return spec.maxSelectable - currentSelectedVideoCount - currentSelectedImageCount;
+                }
+            }
+        }
+        return spec.maxSelectable - mItems.size();
+        /*SelectionSpec spec = SelectionSpec.getInstance();
         if (spec.maxSelectable > 0) {
             return spec.maxSelectable;
         } else if (mCollectionType == COLLECTION_IMAGE) {
@@ -210,8 +271,8 @@ public class SelectedItemCollection {
         } else if (mCollectionType == COLLECTION_VIDEO) {
             return spec.maxVideoSelectable;
         } else {
-            return spec.maxSelectable;
-        }
+            return spec.maxImageSelectable + spec.maxVideoSelectable;
+        }*/
     }
 
     public int getCollectionType() {

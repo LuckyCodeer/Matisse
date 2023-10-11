@@ -43,6 +43,8 @@ public final class SelectionSpec {
     public int maxSelectable;
     public int maxImageSelectable;
     public int maxVideoSelectable;
+    public boolean preciseMaxImageSelectable;
+    public boolean preciseMaxVideoSelectable;
     public List<Filter> filters;
     public boolean capture;
     public CaptureStrategy captureStrategy;

@@ -157,20 +157,28 @@ public final class SelectionCreator {
         return this;
     }
 
+    public SelectionCreator maxSelectablePerMediaType(int maxImageSelectable, int maxVideoSelectable) {
+        return maxSelectablePerMediaType(maxImageSelectable, maxVideoSelectable, true, true);
+    }
+
     /**
      * Only useful when {@link SelectionSpec#mediaTypeExclusive} set true and you want to set different maximum
      * selectable files for image and video media types.
      *
      * @param maxImageSelectable Maximum selectable count for image.
      * @param maxVideoSelectable Maximum selectable count for video.
+     * @param preciseMaxImageSelectable 是否精确最大图片数量
+     * @param preciseMaxVideoSelectable 是否精确最大视频数量
      * @return  {@link SelectionCreator} for fluent API.
      */
-    public SelectionCreator maxSelectablePerMediaType(int maxImageSelectable, int maxVideoSelectable) {
-        if (maxImageSelectable < 1 || maxVideoSelectable < 1)
+    public SelectionCreator maxSelectablePerMediaType(int maxImageSelectable, int maxVideoSelectable, boolean preciseMaxImageSelectable, boolean preciseMaxVideoSelectable) {
+        if (maxImageSelectable < 0 || maxVideoSelectable < 0)
             throw new IllegalArgumentException(("max selectable must be greater than or equal to one"));
-        mSelectionSpec.maxSelectable = -1;
+        mSelectionSpec.maxSelectable = maxImageSelectable + maxVideoSelectable;
         mSelectionSpec.maxImageSelectable = maxImageSelectable;
         mSelectionSpec.maxVideoSelectable = maxVideoSelectable;
+        mSelectionSpec.preciseMaxImageSelectable = preciseMaxImageSelectable;
+        mSelectionSpec.preciseMaxVideoSelectable = preciseMaxVideoSelectable;
         return this;
     }
 
