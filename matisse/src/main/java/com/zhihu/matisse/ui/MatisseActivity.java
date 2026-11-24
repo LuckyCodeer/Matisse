@@ -40,6 +40,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.zhihu.matisse.R;
+import com.zhihu.matisse.SelectionCreator;
 import com.zhihu.matisse.internal.entity.Album;
 import com.zhihu.matisse.internal.entity.Item;
 import com.zhihu.matisse.internal.entity.SelectionSpec;
@@ -116,6 +117,8 @@ public class MatisseActivity extends AppCompatActivity implements
             if (mSpec.captureStrategy == null)
                 throw new RuntimeException("Don't forget to set CaptureStrategy.");
             mMediaStoreCompat.setCaptureStrategy(mSpec.captureStrategy);
+            mMediaStoreCompat.setUseCustomCamera(
+                    mSpec.captureMode == SelectionCreator.CAPTURE_MODE_CUSTOM);
         }
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);

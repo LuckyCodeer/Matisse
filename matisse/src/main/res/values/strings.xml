@@ -39,4 +39,10 @@
     <string name="button_original">Original</string>
     <string name="button_sure_default">Sure</string>
     <string name="button_sure">Sure(%1$d)</string>
+
+    <string name="capture_close">Close</string>
+    <string name="capture_take_photo">Take photo</string>
+    <string name="capture_switch_camera">Switch camera</string>
+    <string name="capture_permission_denied">Camera permission is required</string>
+    <string name="capture_failed">Failed to take photo</string>
 </resources>

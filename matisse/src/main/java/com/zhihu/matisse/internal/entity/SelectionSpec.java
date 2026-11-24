@@ -22,6 +22,7 @@ import androidx.annotation.StyleRes;
 
 import com.zhihu.matisse.MimeType;
 import com.zhihu.matisse.R;
+import com.zhihu.matisse.SelectionCreator;
 import com.zhihu.matisse.engine.ImageEngine;
 import com.zhihu.matisse.engine.impl.GlideEngine;
 import com.zhihu.matisse.filter.Filter;
@@ -50,6 +51,7 @@ public final class SelectionSpec {
     public List<Filter> filters;
     public boolean capture;
     public CaptureStrategy captureStrategy;
+    public int captureMode;
     public int spanCount;
     public int gridExpectedSize;
     public float thumbnailScale;
@@ -88,6 +90,7 @@ public final class SelectionSpec {
         filters = null;
         capture = false;
         captureStrategy = null;
+        captureMode = SelectionCreator.CAPTURE_MODE_CUSTOM;
         spanCount = 3;
         gridExpectedSize = 0;
         thumbnailScale = 0.5f;

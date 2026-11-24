@@ -17,19 +17,21 @@
 
 buildscript {
     repositories {
-        jcenter()
         google()
+        mavenCentral()
+        maven { url 'https://maven.aliyun.com/repository/public' }
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.1.2'
+        classpath 'com.android.tools.build:gradle:8.2.0'
 //        classpath 'com.novoda:bintray-release:0.9.1'
     }
 }
 
 allprojects {
     repositories {
-        jcenter()
         google()
+        mavenCentral()
+        maven { url 'https://maven.aliyun.com/repository/public' }
     }
 }
 

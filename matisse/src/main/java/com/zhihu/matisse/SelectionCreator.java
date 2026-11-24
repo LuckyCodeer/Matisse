@@ -88,6 +88,24 @@ public final class SelectionCreator {
     }
 
     /**
+     * Capture photos with the built-in camera of this library. It provides a fullscreen capture
+     * UI with camera switching support and consumes much less memory than the system camera
+     * application. Only available on API 21+; falls back to the system camera on lower versions.
+     */
+    public static final int CAPTURE_MODE_CUSTOM = 1;
+
+    /**
+     * Capture photos with the system camera application via
+     * {@link android.provider.MediaStore#ACTION_IMAGE_CAPTURE}.
+     */
+    public static final int CAPTURE_MODE_SYSTEM = 2;
+
+    @IntDef({CAPTURE_MODE_CUSTOM, CAPTURE_MODE_SYSTEM})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface CaptureMode {
+    }
+
+    /**
      * Constructs a new specification builder on the context.
      *
      * @param matisse   a requester context wrapper.
@@ -207,6 +225,27 @@ public final class SelectionCreator {
      */
     public SelectionCreator capture(boolean enable) {
         mSelectionSpec.capture = enable;
+        return this;
+    }
+
+    /**
+     * Determines which camera to use for photo capturing when {@link #capture(boolean)} is
+     * enabled.
+     * <p>
+     * 1. {@link #CAPTURE_MODE_CUSTOM}: a built-in fullscreen capture UI with camera switching,
+     * which starts faster and consumes much less memory than launching the system camera
+     * application. This is the default value.
+     * 2. {@link #CAPTURE_MODE_SYSTEM}: launches the system camera application via
+     * {@link android.provider.MediaStore#ACTION_IMAGE_CAPTURE}.
+     * <p>
+     * The captured result is delivered through {@link Matisse#obtainResult(Intent)} and
+     * {@link Matisse#obtainPathResult(Intent)} in both modes.
+     *
+     * @param captureMode one of {@link #CAPTURE_MODE_CUSTOM} or {@link #CAPTURE_MODE_SYSTEM}.
+     * @return {@link SelectionCreator} for fluent API.
+     */
+    public SelectionCreator captureMode(@CaptureMode int captureMode) {
+        mSelectionSpec.captureMode = captureMode;
         return this;
     }
 

@@ -83,4 +83,13 @@
         <item name="android:popupBackground">@color/dracula_album_popup_bg</item>
     </style>
 
+    //================================== Capture Camera ==========================================
+
+    <style name="Matisse.Capture" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
 </resources>
