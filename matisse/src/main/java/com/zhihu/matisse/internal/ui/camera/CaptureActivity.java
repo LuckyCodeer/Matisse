@@ -16,11 +16,13 @@
 package com.zhihu.matisse.internal.ui.camera;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.MediaScannerConnection;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -30,6 +32,8 @@ import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -51,11 +55,13 @@ import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.zhihu.matisse.R;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
@@ -72,26 +78,36 @@ import java.io.IOException;
 public class CaptureActivity extends AppCompatActivity {
 
     public static final String EXTRA_OUTPUT_PATH = "extra_output_path";
+    public static final String EXTRA_URI_AUTHORITY = "extra_uri_authority";
+    public static final String EXTRA_RESULT_PATH = "extra_result_capture_path";
+    public static final String EXTRA_RESULT_URI = "extra_result_capture_uri";
 
     private static final int REQUEST_CODE_CAMERA_PERMISSION = 100;
 
     private PreviewView mPreviewView;
     private View mShutterButton;
-    private View mSwitchCameraButton;
+    private ImageButton mSwitchCameraButton;
     private FrameLayout mRoot;
+    private ImageView mPhotoPreview;
 
     private ProcessCameraProvider mCameraProvider;
     private Camera mCamera;
     private ImageCapture mImageCapture;
     private String mOutputPath;
+    private String mUriAuthority;
     private int mLensFacing = CameraSelector.LENS_FACING_BACK;
     private boolean mIsCapturing;
     private View mFocusIndicatorView;
+    private boolean mConfirming;
+    private boolean mSaving;
+    private File mTempPhotoFile;
+    private Bitmap mPreviewBitmap;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mOutputPath = getIntent().getStringExtra(EXTRA_OUTPUT_PATH);
+        mUriAuthority = getIntent().getStringExtra(EXTRA_URI_AUTHORITY);
         if (TextUtils.isEmpty(mOutputPath)) {
             setResult(RESULT_CANCELED);
             finish();
@@ -105,14 +121,20 @@ public class CaptureActivity extends AppCompatActivity {
         mShutterButton = findViewById(R.id.button_shutter);
         mSwitchCameraButton = findViewById(R.id.button_switch_camera);
         mRoot = findViewById(R.id.capture_root);
+        mPhotoPreview = findViewById(R.id.photo_preview);
         mShutterButton.setEnabled(false);
         mSwitchCameraButton.setVisibility(View.INVISIBLE);
 
         findViewById(R.id.button_close).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                setResult(RESULT_CANCELED);
-                finish();
+                if (mConfirming) {
+                    // Discard the temporary shot and go back to capturing.
+                    cancelConfirm();
+                } else {
+                    setResult(RESULT_CANCELED);
+                    finish();
+                }
             }
         });
         mShutterButton.setOnClickListener(new View.OnClickListener() {
@@ -124,13 +146,17 @@ public class CaptureActivity extends AppCompatActivity {
         mSwitchCameraButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                switchCamera();
+                if (mConfirming) {
+                    confirmPhoto();
+                } else {
+                    switchCamera();
+                }
             }
         });
         mPreviewView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_UP) {
+                if (!mConfirming && event.getAction() == MotionEvent.ACTION_UP) {
                     focusAt(event.getX(), event.getY());
                 }
                 return true;
@@ -335,8 +361,15 @@ public class CaptureActivity extends AppCompatActivity {
         mShutterButton.setEnabled(false);
         mSwitchCameraButton.setEnabled(false);
 
+        // The shot is written to a temporary file first; it is copied to the final
+        // destination (and handed back to callers) only after the user confirms it.
+        mTempPhotoFile = new File(getCacheDir(), "matisse_capture_tmp.jpg");
+        if (mTempPhotoFile.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            mTempPhotoFile.delete();
+        }
         ImageCapture.OutputFileOptions options =
-                new ImageCapture.OutputFileOptions.Builder(new File(mOutputPath)).build();
+                new ImageCapture.OutputFileOptions.Builder(mTempPhotoFile).build();
         mImageCapture.takePicture(options, ContextCompat.getMainExecutor(this),
                 new ImageCapture.OnImageSavedCallback() {
                     @Override
@@ -344,7 +377,24 @@ public class CaptureActivity extends AppCompatActivity {
                         if (isFinishing() || isDestroyed()) {
                             return;
                         }
-                        finishWithPhoto();
+                        if (mLensFacing == CameraSelector.LENS_FACING_FRONT) {
+                            // The front preview is mirrored, so the temporary shot is mirrored
+                            // as well before entering the confirm screen.
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    mirrorPhoto(mTempPhotoFile);
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            enterConfirmMode();
+                                        }
+                                    });
+                                }
+                            }, "MatissePhotoMirror").start();
+                        } else {
+                            enterConfirmMode();
+                        }
                     }
 
                     @Override
@@ -361,32 +411,151 @@ public class CaptureActivity extends AppCompatActivity {
                 });
     }
 
-    private void finishWithPhoto() {
-        final File photoFile = new File(mOutputPath);
-        if (mLensFacing == CameraSelector.LENS_FACING_FRONT) {
-            // Front camera preview shows a mirrored image, so the saved photo is mirrored
-            // as well to keep what you see and what you get consistent.
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    mirrorPhoto(photoFile);
-                    notifyGallery(photoFile);
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (isFinishing() || isDestroyed()) {
-                                return;
+    private void enterConfirmMode() {
+        if (isFinishing() || isDestroyed()
+                || mTempPhotoFile == null || !mTempPhotoFile.exists()) {
+            return;
+        }
+        mConfirming = true;
+        mIsCapturing = false;
+        mShutterButton.setVisibility(View.GONE);
+        mSwitchCameraButton.setVisibility(View.VISIBLE);
+        mSwitchCameraButton.setImageResource(R.drawable.ic_camera_confirm);
+        mSwitchCameraButton.setEnabled(true);
+
+        releasePreviewBitmap();
+        mPreviewBitmap = loadPreviewBitmap(mTempPhotoFile);
+        if (mPreviewBitmap != null) {
+            mPhotoPreview.setImageBitmap(mPreviewBitmap);
+            mPhotoPreview.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void cancelConfirm() {
+        if (!mConfirming) {
+            return;
+        }
+        mConfirming = false;
+        deleteTempPhoto();
+        mPhotoPreview.setVisibility(View.GONE);
+        mPhotoPreview.setImageDrawable(null);
+        releasePreviewBitmap();
+        mShutterButton.setVisibility(View.VISIBLE);
+        mShutterButton.setEnabled(true);
+        mSwitchCameraButton.setImageResource(R.drawable.ic_camera_switch);
+        mSwitchCameraButton.setEnabled(true);
+    }
+
+    private void confirmPhoto() {
+        if (!mConfirming || mSaving || mTempPhotoFile == null || !mTempPhotoFile.exists()) {
+            return;
+        }
+        mSaving = true;
+        mSwitchCameraButton.setEnabled(false);
+        final File tempFile = mTempPhotoFile;
+        final File outputFile = new File(mOutputPath);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final boolean saved = copyFile(tempFile, outputFile);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (saved) {
+                            //noinspection ResultOfMethodCallIgnored
+                            tempFile.delete();
+                            mTempPhotoFile = null;
+                            if (!isFinishing() && !isDestroyed()) {
+                                notifyGallery(outputFile);
+                                setResult(RESULT_OK, buildResult(outputFile));
+                                finish();
                             }
-                            setResult(RESULT_OK);
-                            finish();
+                        } else {
+                            mSaving = false;
+                            mSwitchCameraButton.setEnabled(true);
+                            if (!isFinishing() && !isDestroyed()) {
+                                Toast.makeText(CaptureActivity.this, R.string.capture_failed,
+                                        Toast.LENGTH_SHORT).show();
+                            }
                         }
-                    });
+                    }
+                });
+            }
+        }, "MatissePhotoSave").start();
+    }
+
+    private Intent buildResult(File photoFile) {
+        Intent result = new Intent();
+        result.putExtra(EXTRA_RESULT_PATH, photoFile.getAbsolutePath());
+        if (!TextUtils.isEmpty(mUriAuthority)) {
+            try {
+                Uri uri = FileProvider.getUriForFile(this, mUriAuthority, photoFile);
+                result.putExtra(EXTRA_RESULT_URI, uri);
+            } catch (Exception e) {
+                // The provider may not cover this path; callers can still use the file path.
+            }
+        }
+        return result;
+    }
+
+    private void deleteTempPhoto() {
+        if (mTempPhotoFile != null) {
+            //noinspection ResultOfMethodCallIgnored
+            mTempPhotoFile.delete();
+            mTempPhotoFile = null;
+        }
+    }
+
+    private static Bitmap loadPreviewBitmap(File file) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+        int sampleSize = 1;
+        int maxDimension = Math.max(options.outWidth, options.outHeight);
+        while (maxDimension / (sampleSize * 2) >= 1920) {
+            sampleSize *= 2;
+        }
+        options.inJustDecodeBounds = false;
+        options.inSampleSize = sampleSize;
+        return BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+    }
+
+    private void releasePreviewBitmap() {
+        if (mPreviewBitmap != null) {
+            mPreviewBitmap.recycle();
+            mPreviewBitmap = null;
+        }
+    }
+
+    private static boolean copyFile(File source, File target) {
+        FileInputStream input = null;
+        FileOutputStream output = null;
+        try {
+            input = new FileInputStream(source);
+            output = new FileOutputStream(target);
+            byte[] buffer = new byte[64 * 1024];
+            int length;
+            while ((length = input.read(buffer)) != -1) {
+                output.write(buffer, 0, length);
+            }
+            return true;
+        } catch (Exception e) {
+            //noinspection ResultOfMethodCallIgnored
+            target.delete();
+            return false;
+        } finally {
+            if (output != null) {
+                try {
+                    output.close();
+                } catch (IOException ignored) {
                 }
-            }, "MatissePhotoMirror").start();
-        } else {
-            notifyGallery(photoFile);
-            setResult(RESULT_OK);
-            finish();
+            }
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (IOException ignored) {
+                }
+            }
         }
     }
 
@@ -454,6 +623,15 @@ public class CaptureActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        if (mConfirming) {
+            cancelConfirm();
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         if (mCameraProvider != null) {
             mCameraProvider.unbindAll();
@@ -461,6 +639,11 @@ public class CaptureActivity extends AppCompatActivity {
         }
         mCamera = null;
         mImageCapture = null;
+        releasePreviewBitmap();
+        mPhotoPreview = null;
+        if (!mSaving) {
+            deleteTempPhoto();
+        }
         super.onDestroy();
     }
 }

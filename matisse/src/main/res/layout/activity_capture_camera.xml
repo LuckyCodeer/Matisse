@@ -25,6 +25,15 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <ImageView
+        android:id="@+id/photo_preview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/black"
+        android:contentDescription="@string/capture_take_photo"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="132dp"

@@ -37,17 +37,20 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.zhihu.matisse.Matisse;
 import com.zhihu.matisse.MimeType;
+import com.zhihu.matisse.camera.CameraCapture;
 import com.zhihu.matisse.engine.impl.GlideEngine;
 import com.zhihu.matisse.engine.impl.PicassoEngine;
 import com.zhihu.matisse.filter.Filter;
 import com.zhihu.matisse.internal.entity.CaptureStrategy;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SampleActivity extends AppCompatActivity implements View.OnClickListener {
 
     private static final int REQUEST_CODE_CHOOSE = 23;
     private static final int REQUEST_CODE_PERMISSION = 24;
+    private static final int REQUEST_CODE_DIRECT_CAMERA = 25;
 
     private UriAdapter mAdapter;
     private View mPendingView;
@@ -59,6 +62,7 @@ public class SampleActivity extends AppCompatActivity implements View.OnClickLis
         findViewById(R.id.zhihu).setOnClickListener(this);
         findViewById(R.id.dracula).setOnClickListener(this);
         findViewById(R.id.only_gif).setOnClickListener(this);
+        findViewById(R.id.camera_capture).setOnClickListener(this);
 
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerview);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -157,6 +161,11 @@ public class SampleActivity extends AppCompatActivity implements View.OnClickLis
                         .autoHideToolbarOnSingleTap(true)
                         .forResult(REQUEST_CODE_CHOOSE);
                 break;
+            case R.id.camera_capture:
+                CameraCapture.from(SampleActivity.this)
+                        .uriAuthority("com.zhihu.matisse.sample.fileprovider")
+                        .forResult(REQUEST_CODE_DIRECT_CAMERA);
+                break;
             default:
                 break;
         }
@@ -169,6 +178,17 @@ public class SampleActivity extends AppCompatActivity implements View.OnClickLis
         if (requestCode == REQUEST_CODE_CHOOSE && resultCode == RESULT_OK) {
             mAdapter.setData(Matisse.obtainResult(data), Matisse.obtainPathResult(data));
             Log.e("OnActivityResult ", String.valueOf(Matisse.obtainOriginalState(data)));
+        } else if (requestCode == REQUEST_CODE_DIRECT_CAMERA && resultCode == RESULT_OK) {
+            String path = CameraCapture.obtainPath(data);
+            Uri uri = CameraCapture.obtainUri(data);
+            Log.e("CameraCapture", "path=" + path + ", uri=" + uri);
+            List<Uri> uris = new ArrayList<>();
+            if (uri != null) {
+                uris.add(uri);
+            }
+            List<String> paths = new ArrayList<>();
+            paths.add(path == null ? "" : path);
+            mAdapter.setData(uris, paths);
         }
     }
 
