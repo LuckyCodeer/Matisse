@@ -11,7 +11,7 @@ allprojects {
 
 ```groovy
 dependencies {
-    implementation 'com.github.LuckyCodeer:Matisse:0.5.8'
+    implementation 'com.github.LuckyCodeer:Matisse:0.5.9'
 }
 ```
 
