@@ -16,6 +16,7 @@
 apply plugin: 'com.android.library'
 //apply plugin: 'com.novoda.bintray-release'
 apply plugin: 'checkstyle'
+apply plugin: 'maven-publish'
 
 android {
     namespace 'com.zhihu.matisse'
@@ -28,6 +29,9 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+    publishing {
+        singleVariant('release')
     }
     lint {
         abortOnError false
@@ -59,6 +63,21 @@ task javadoc(type: Javadoc) {
 
 checkstyle {
     toolVersion = '7.6.1'
+}
+
+// Publishes the release AAR so JitPack (publishToMavenLocal) and local builds can
+// consume this library as a Maven artifact.
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = project.group ?: 'com.github.LuckyCodeer'
+                artifactId = 'Matisse'
+                version = project.version ?: '0.5.8'
+            }
+        }
+    }
 }
 
 tasks.withType(Javadoc) {
